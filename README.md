@@ -1,20 +1,55 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Dorago
 
-# Run and deploy your AI Studio app
+Dorago is a travel-itinerary organizer being migrated from an AI-assisted
+React prototype to a deployable Flutter, FastAPI, PostgreSQL, Redis, and private
+S3-compatible storage architecture.
 
-This contains everything you need to run your app locally.
+The React/Vite application at the repository root remains a behavioral and
+visual reference. It is not the production application and its Express server,
+browser persistence, demo authentication, and fallback parser must not be
+deployed.
 
-View your app in AI Studio: https://ai.studio/apps/f086d579-81c3-49cc-8f40-e54578ec4e2e
+## Repository layout
 
-## Run Locally
+- `apps/flutter/` — iOS, Android, and Web client.
+- `services/api/` — Python 3.12+ FastAPI service and Alembic migrations.
+- `infra/` — Docker Compose and Caddy deployment topology.
+- `docs/` — current-architecture audit, migration plan, status, and runbook.
+- `src/` and `server.ts` — preserved React prototype reference.
 
-**Prerequisites:**  Node.js
+## Local quality checks
 
+Backend, from `services/api/` after installing `.[dev]` into a Python 3.12
+virtual environment:
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```sh
+ruff format --check .
+ruff check .
+mypy app
+pytest -q
+```
+
+Flutter, from `apps/flutter/` with a stable Flutter SDK:
+
+```sh
+flutter pub get
+dart run build_runner build
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
+flutter build web --release --dart-define=API_BASE_URL=/api/v1
+```
+
+PostgreSQL integration tests require `TEST_DATABASE_URL` to name a disposable
+database ending in `_test`. The test harness refuses to reset any other name.
+
+## Deployment
+
+Create an untracked `.env` from `.env.example`, provide real secret values and
+SMTP/storage configuration, and follow [the deployment runbook](docs/DEPLOYMENT.md).
+Only Caddy is published by Compose; PostgreSQL, Redis, MinIO, the API, and the
+Flutter web server remain private.
+
+Architecture decisions and incomplete release gates are tracked in
+[the migration plan](docs/MIGRATION_PLAN.md) and
+[implementation status](docs/IMPLEMENTATION_STATUS.md).

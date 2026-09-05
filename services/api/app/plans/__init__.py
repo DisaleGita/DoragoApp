@@ -1,0 +1,1 @@
+"""Itinerary plan domain."""

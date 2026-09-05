@@ -1,0 +1,42 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+*.db
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+dist/
+node_modules/
+coverage/
+htmlcov/
+*.log
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+apps/flutter/android/local.properties
+apps/flutter/android/key.properties
+apps/flutter/android/.gradle/
+apps/flutter/ios/Pods/
+apps/flutter/ios/Flutter/Generated.xcconfig
+apps/flutter/ios/Flutter/flutter_export_environment.sh
+*.jks
+*.keystore
+
+# IDE
+.idea/
+.vscode/
+
+# Local object/database data
+.data/
+postgres-data/
+redis-data/
+minio-data/
