@@ -1,0 +1,6 @@
+{
+  "name": "Dorago - Travel Itinerary & Operations",
+  "description": "Mobile-first travel itinerary organization and operations platform with email OTP auth, offline caching, and server-side Gemini AI travel confirmation parser.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
