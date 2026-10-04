@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace = "app.dorago.dorago"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_secure_storage 11 compiles against API 37. compileSdk only
+    // exposes newer APIs; runtime behaviour is still set by targetSdk.
+    compileSdk = maxOf(flutter.compileSdkVersion, 37)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
