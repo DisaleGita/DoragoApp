@@ -1,7 +1,8 @@
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -39,8 +40,24 @@ class Settings(BaseSettings):
     storage_bucket: str = "dorago-documents"
     storage_region: str = "us-east-1"
     storage_use_ssl: bool = False
-    cors_allowed_origins: list[str] = Field(default_factory=list)
+    cors_allowed_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     max_document_bytes: int = 15 * 1024 * 1024
+
+    @field_validator(
+        "dev_otp_code",
+        "gemini_api_key",
+        "smtp_host",
+        "smtp_username",
+        "smtp_password",
+        "smtp_from_email",
+        "storage_access_key",
+        "storage_secret_key",
+        mode="before",
+    )
+    @classmethod
+    def blank_is_unset(cls, value: object) -> object:
+        # .env.example ships these as `KEY=`; an empty value means "not configured".
+        return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod
