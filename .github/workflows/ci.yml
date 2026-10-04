@@ -76,7 +76,7 @@ jobs:
         working-directory: apps/flutter
       - run: flutter test
         working-directory: apps/flutter
-      - run: flutter build web --release --dart-define=API_BASE_URL=/api/v1
+      - run: flutter build web --release --no-web-resources-cdn --dart-define=API_BASE_URL=/api/v1
         working-directory: apps/flutter
       - run: flutter build apk --debug
         working-directory: apps/flutter

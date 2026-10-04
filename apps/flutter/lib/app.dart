@@ -13,21 +13,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final session = ref.watch(sessionProvider);
-  return GoRouter(
+  // The router is created once so the browser location survives session
+  // restoration; session changes only re-run the redirect.
+  final sessionStatus = ValueNotifier(ref.read(sessionProvider).status);
+  ref.listen(sessionProvider, (_, next) => sessionStatus.value = next.status);
+  ref.onDispose(sessionStatus.dispose);
+  final router = GoRouter(
     initialLocation: '/trips',
-    redirect: (context, state) {
-      final authRoute =
-          state.matchedLocation == '/login' ||
-          state.matchedLocation == '/verify';
-      return switch (session.status) {
-        SessionStatus.loading =>
-          state.matchedLocation == '/loading' ? null : '/loading',
-        SessionStatus.unauthenticated => authRoute ? null : '/login',
-        SessionStatus.authenticated =>
-          authRoute || state.matchedLocation == '/loading' ? '/trips' : null,
-      };
-    },
+    refreshListenable: sessionStatus,
+    redirect: (context, state) =>
+        sessionRedirect(sessionStatus.value, state.matchedLocation, state.uri),
     routes: [
       GoRoute(
         path: '/loading',
@@ -75,7 +70,48 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });
+
+/// Sends visitors to the screen their session allows while remembering the
+/// location they asked for, so a browser refresh or deep link reopens it.
+String? sessionRedirect(
+  SessionStatus status,
+  String matchedLocation,
+  Uri requested,
+) {
+  final authRoute = matchedLocation == '/login' || matchedLocation == '/verify';
+  final onLoading = matchedLocation == '/loading';
+  return switch (status) {
+    SessionStatus.loading =>
+      onLoading
+          ? null
+          : Uri(
+              path: '/loading',
+              queryParameters: {'from': requested.toString()},
+            ).toString(),
+    SessionStatus.unauthenticated => authRoute ? null : '/login',
+    SessionStatus.authenticated when onLoading => _safeReturnLocation(
+      requested.queryParameters['from'],
+    ),
+    SessionStatus.authenticated => authRoute ? '/trips' : null,
+  };
+}
+
+String _safeReturnLocation(String? from) {
+  final location = from == null ? null : Uri.tryParse(from);
+  // Only same-app paths are accepted; anything else falls back to the list.
+  if (location == null ||
+      location.hasScheme ||
+      location.hasAuthority ||
+      !location.path.startsWith('/') ||
+      location.path.startsWith('//') ||
+      const {'/loading', '/login', '/verify'}.contains(location.path)) {
+    return '/trips';
+  }
+  return location.toString();
+}
 
 class DoragoApp extends ConsumerWidget {
   const DoragoApp({super.key});
