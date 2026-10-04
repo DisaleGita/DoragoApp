@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dorago/core/timezones.dart';
 import 'package:dorago/data/api/api_client.dart';
 import 'package:dorago/data/auth/auth_repository.dart';
 import 'package:dorago/data/auth/token_store.dart';
@@ -18,6 +19,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dorago/application/reminder_scheduler.dart';
 
+/// The device's IANA timezone, detected once in main() before the app starts.
+final deviceTimezoneProvider = Provider<String>((ref) => fallbackTimezone);
 final tokenStoreProvider = Provider(
   (ref) => const TokenStore(FlutterSecureStorage()),
 );

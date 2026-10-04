@@ -86,7 +86,7 @@ class PlanItem {
     confirmationNumber: json['confirmation_number'] as String?,
     locationName: json['location_name'] as String?,
     address: json['address'] as String?,
-    costAmount: (json['cost_amount'] as num?)?.toDouble(),
+    costAmount: _decimalOrNull(json['cost_amount']),
     costCurrency: json['cost_currency'] as String?,
     notes: json['notes'] as String?,
     websiteUrl: json['website_url'] as String?,
@@ -121,3 +121,12 @@ class PlanItem {
   final Map<String, dynamic> details;
   final int version;
 }
+
+/// The API serializes money as a decimal string (for example "2369.20") so it
+/// stays exact; older cached payloads may still hold a number.
+double? _decimalOrNull(Object? value) => switch (value) {
+  null => null,
+  final num number => number.toDouble(),
+  final String text => double.parse(text),
+  _ => throw FormatException('Invalid decimal value: $value'),
+};

@@ -264,7 +264,11 @@ class _Hero extends ConsumerWidget {
               FilledButton.icon(
                 onPressed: () => showDialog<bool>(
                   context: context,
-                  builder: (_) => PlanFormDialog(tripId: trip.id),
+                  builder: (_) => PlanFormDialog(
+                    tripId: trip.id,
+                    tripTimezone: trip.timezone,
+                    tripStartDate: trip.startDate,
+                  ),
                 ),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add Plan'),

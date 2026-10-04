@@ -1,3 +1,5 @@
+import 'package:dorago/presentation/shared/timezone_field.dart';
+import 'package:dorago/core/timezones.dart';
 import 'package:dorago/application/providers.dart';
 import 'package:dorago/data/api/api_client.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +15,9 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final name = TextEditingController();
   final airport = TextEditingController();
-  final timezone = TextEditingController(text: 'UTC');
+  late final timezone = TextEditingController(
+    text: ref.read(deviceTimezoneProvider),
+  );
   String? error;
   bool busy = false;
 
@@ -27,6 +31,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> save() async {
     if (name.text.trim().isEmpty || busy) return;
+    if (!isKnownTimezone(timezone.text.trim())) {
+      setState(() => error = 'Choose your home timezone from the list.');
+      return;
+    }
     setState(() {
       busy = true;
       error = null;
@@ -79,13 +87,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: timezone,
-                decoration: const InputDecoration(
-                  labelText: 'Home IANA timezone',
-                  hintText: 'America/Chicago',
-                ),
-              ),
+              TimezoneField(controller: timezone, label: 'Home timezone'),
               if (error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
