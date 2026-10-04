@@ -53,7 +53,7 @@ database ending in `_test`. The test harness refuses to reset any other name.
 
 Create an untracked `.env` from `.env.example`, provide real secret values and
 SMTP/storage configuration, and follow [the deployment runbook](docs/DEPLOYMENT.md).
-Only Caddy is published by Compose; PostgreSQL, Redis, MinIO, the API, and the
+Only Caddy is published by Compose; PostgreSQL, Redis, SeaweedFS object storage, the API, and the
 Flutter web server remain private.
 
 Architecture decisions and incomplete release gates are tracked in

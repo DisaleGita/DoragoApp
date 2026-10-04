@@ -296,8 +296,9 @@ Documents must not be stored as browser blob URLs.
 
 Use a private storage abstraction.
 
-For the initial DigitalOcean deployment, use S3-compatible storage such as
-MinIO running privately in Docker.
+For the initial DigitalOcean deployment, use S3-compatible storage running
+privately in Docker. SeaweedFS is used because MinIO no longer publishes
+pullable Docker images (decision 2026-10-04).
 
 The storage abstraction must later allow migration to DigitalOcean Spaces
 without rewriting document domain logic.
@@ -368,7 +369,7 @@ Create Dockerfiles and Docker Compose configuration for:
 - API
 - PostgreSQL
 - Redis
-- MinIO
+- private S3-compatible storage (SeaweedFS)
 - Flutter Web
 - reverse proxy
 

@@ -14,12 +14,18 @@ because source exists.
 | 4. Trip/plan services | Complete | PostgreSQL-backed owner-scoped CRUD/IDOR, UUIDs, versions, tombstones, chronology, costs, separate timezone fields, override provenance, validated type-specific detail schemas | None for this phase |
 | 5. Flutter core parity | Partially complete | URL routing, auth/onboarding, Trips, Next Up, trip tabs, plan/trip forms, profile/export, responsive navigation; Web release build succeeds | Android/iOS builds, broader widget/integration tests, signed UI parity review |
 | 6. AI import | Implemented, external verification pending | Backend-only Gemini, strict extraction schema, no fallback, private files, warnings/confidence, editable review, existing/new-trip transactional acceptance, PostgreSQL-backed acceptance/override test | Live configured Gemini smoke test |
-| 7. Documents/reminders/locations | Implemented, external verification pending | Private validated uploads, owner-authorized API downloads, reminder reschedule/cancel lifecycle, map links, explicit unavailable geocoder | Real MinIO lifecycle test and mobile notification device test |
+| 7. Documents/reminders/locations | Implemented, external verification pending | Private validated uploads, owner-authorized API downloads, reminder reschedule/cancel lifecycle, map links, explicit unavailable geocoder | Mobile notification device test (S3 lifecycle verified against SeaweedFS 4.48 locally) |
 | 8. Offline sync | Partially complete | Drift trip/plan/document cache, versioned stable mutations, tombstones, server idempotency receipts/cursors, acknowledgement-only clearing, last-sync display, conflict banner, offline tests | Full reconnect and conflict-resolution UX tests |
-| 9. Deployment | Implemented, not exercised locally | API/Web Dockerfiles, private Compose network, PostgreSQL/Redis/MinIO/Caddy/migration services, CI and runbook | Docker deploy, HTTPS, migration, backup/restore, and security smoke tests on a clean host |
+| 9. Deployment | Implemented, not exercised locally | API/Web Dockerfiles, private Compose network, PostgreSQL/Redis/SeaweedFS/Caddy/migration and bucket-init services, CI and runbook | Docker deploy, HTTPS, migration, backup/restore, and security smoke tests on a clean host |
 | 10. Parity cutover | Not started | React prototype remains untouched at the root | All prior gates, mobile release builds, product sign-off, rollback rehearsal, then legacy move |
 
 ## Latest local verification
+
+2026-10-04: MinIO's Docker images are no longer pullable, so Compose now runs
+SeaweedFS 4.48. Verified locally against the SeaweedFS binary: bucket creation
+through `ensure_bucket()`, upload, byte-identical download, cross-user 404s,
+type/content/size rejection, duplicate rejection, delete, and anonymous
+access refused (403). CI (API, Flutter web + Android, iOS) is green.
 
 2026-10-02 local run (API, PostgreSQL 16.15 and Redis 7.4 running natively; no
 Docker, SMTP, MinIO or Gemini):

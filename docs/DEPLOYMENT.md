@@ -5,16 +5,19 @@
 Use a supported DigitalOcean Ubuntu LTS droplet with Docker Engine, the Compose
 plugin, a firewall allowing only SSH, HTTP, and HTTPS, and DNS pointing
 `APP_DOMAIN` at the droplet. Keep `.env` readable only by the deployment user.
-Never expose PostgreSQL, Redis, MinIO, or the MinIO console on a public port.
+Never expose PostgreSQL, Redis, or SeaweedFS on a public port.
 
-The pinned MinIO binary image is a legacy distribution and must be included in
-dependency/security review before each production rollout. Confirm licensing
-obligations and supported alternatives; the API storage adapter can instead
-target DigitalOcean Spaces without changing document domain behavior.
+Object storage is SeaweedFS (`chrislusf/seaweedfs`, Apache-2.0) pinned in
+`infra/compose.yaml`. MinIO was the original choice but no longer publishes
+pullable Docker images (checked 2026-10-04). Review the pinned SeaweedFS
+version before each production rollout. The API storage adapter speaks plain
+S3, so DigitalOcean Spaces can replace SeaweedFS by changing `STORAGE_*`
+settings, without changing document domain behavior.
 
 Create `.env` from `.env.example` and generate independent high-entropy values
 for `POSTGRES_PASSWORD`, `JWT_SECRET`, `OTP_HASH_SECRET`,
-`MINIO_ROOT_PASSWORD`, and every third-party credential. Production must use
+`STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` (letters and digits only, e.g.
+`openssl rand -hex 32`), and every third-party credential. Production must use
 `APP_ENV=production`, `ENABLE_DEV_OTP_BYPASS=false`, working SMTP settings, and
 an exact HTTPS `CORS_ALLOWED_ORIGINS` value.
 
@@ -35,15 +38,15 @@ docker compose --env-file ../.env -f compose.yaml up -d
 docker compose --env-file ../.env -f compose.yaml ps
 ```
 
-The API does not start until the one-shot Alembic migration and private bucket
-initialization succeed. Verify `/api/v1/health/live` and
+The API does not start until the one-shot Alembic migration (`migrate`) and
+private bucket initialization (`storage-init`) succeed. Verify `/api/v1/health/live` and
 `/api/v1/health/ready` through the public HTTPS endpoint after every deploy.
 
 ## Backup
 
 Schedule encrypted off-host backups. A database backup is created with
-`pg_dump --format=custom`; object data is mirrored from the private MinIO bucket
-with `mc mirror`. Keep the database dump and matching object snapshot together.
+`pg_dump --format=custom`; object data is archived from the `seaweedfs-data`
+volume. Keep the database dump and matching object snapshot together.
 Do not treat Redis as recoverable application data.
 
 Example commands are intentionally parameterized; resolve and inspect every
@@ -53,8 +56,10 @@ target before running them:
 docker compose --env-file ../.env -f compose.yaml exec -T postgres \
   pg_dump --username "$POSTGRES_USER" --format=custom "$POSTGRES_DB" > dorago.dump
 
-docker compose --env-file ../.env -f compose.yaml run --rm minio-init \
-  mc mirror dorago/"$STORAGE_BUCKET" /backup/documents
+docker compose --env-file ../.env -f compose.yaml stop seaweedfs
+docker run --rm -v dorago_seaweedfs-data:/data:ro -v "$PWD":/backup alpine \
+  tar czf /backup/seaweedfs-data.tgz -C /data .
+docker compose --env-file ../.env -f compose.yaml start seaweedfs
 ```
 
 Store outputs outside the droplet. Retention, encryption keys, and monitoring
@@ -63,8 +68,8 @@ must be configured in the hosting account rather than committed here.
 ## Restore drill
 
 Perform restores only into a new empty environment first. Stop API writes,
-restore the PostgreSQL custom dump with `pg_restore`, mirror objects into the
-new private bucket, run `alembic upgrade head`, and execute ownership/document
+restore the PostgreSQL custom dump with `pg_restore`, extract the
+`seaweedfs-data` archive into the new volume, run `alembic upgrade head`, and execute ownership/document
 smoke tests. Switch DNS only after record counts, signed downloads, login, and
 trip timelines have been verified. Record recovery time and any manual step.
 

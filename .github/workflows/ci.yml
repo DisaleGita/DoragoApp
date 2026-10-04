@@ -64,6 +64,31 @@ jobs:
       - run: pytest -q
         working-directory: services/api
 
+  deploy-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Placeholder values only make the Compose file resolvable; they are
+      # never used to run anything.
+      - name: Write placeholder environment
+        run: |
+          cat > .env <<'EOF'
+          APP_ENV=production
+          APP_DOMAIN=example.invalid
+          POSTGRES_DB=dorago
+          POSTGRES_USER=dorago
+          POSTGRES_PASSWORD=placeholder
+          STORAGE_ACCESS_KEY=placeholder
+          STORAGE_SECRET_KEY=placeholder
+          EOF
+      - name: Validate Compose configuration
+        run: docker compose --env-file ../.env -f compose.yaml config --quiet
+        working-directory: infra
+      # Fails if any pinned third-party image stops being published.
+      - name: Pull third-party images
+        run: docker compose --env-file ../.env -f compose.yaml pull --ignore-buildable
+        working-directory: infra
+
   flutter:
     runs-on: ubuntu-latest
     steps:
