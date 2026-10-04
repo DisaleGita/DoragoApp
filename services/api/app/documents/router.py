@@ -1,3 +1,5 @@
+import hashlib
+import logging
 import re
 import uuid
 from pathlib import Path
@@ -6,6 +8,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -22,6 +25,7 @@ from app.users.models import User
 
 trip_router = APIRouter(prefix="/trips", tags=["documents"])
 router = APIRouter(prefix="/documents", tags=["documents"])
+logger = logging.getLogger("dorago.api")
 
 ALLOWED = {
     ".pdf": {"application/pdf"},
@@ -89,6 +93,54 @@ async def list_documents(
     )
 
 
+async def attached_duplicate(
+    db: AsyncSession,
+    storage: PrivateObjectStorage,
+    trip_id: uuid.UUID,
+    content_sha256: str,
+    size: int,
+) -> TravelDocument | None:
+    live = TravelDocument.trip_id == trip_id, TravelDocument.deleted_at.is_(None)
+    match = await db.scalar(
+        select(TravelDocument).where(*live, TravelDocument.content_sha256 == content_sha256)
+    )
+    if match is not None:
+        return match
+    # Documents uploaded before content hashing have no hash. Identical files
+    # share a size, so only same-size legacy documents are read and compared.
+    legacy = await db.scalars(
+        select(TravelDocument).where(
+            *live,
+            TravelDocument.content_sha256.is_(None),
+            TravelDocument.file_size_bytes == size,
+        )
+    )
+    for candidate in legacy:
+        try:
+            stored = await storage.read(candidate.storage_key)
+        except Exception:
+            # A legacy object that cannot be read cannot be compared; it must
+            # not block the upload of a file the user is entitled to add.
+            logger.warning(
+                "Skipped unreadable legacy document %s in duplicate check",
+                candidate.id,
+                exc_info=True,
+            )
+            continue
+        if hashlib.sha256(stored).hexdigest() == content_sha256:
+            return candidate
+    return None
+
+
+def duplicate_error(existing: TravelDocument) -> ApiError:
+    return ApiError(
+        409,
+        "duplicate_document",
+        f'This file is already attached to this trip as "{existing.file_name}".',
+        details={"existing_document_id": str(existing.id), "file_name": existing.file_name},
+    )
+
+
 @trip_router.post("/{trip_id}/documents", response_model=DocumentResponse, status_code=201)
 async def upload_document(
     trip_id: uuid.UUID,
@@ -114,8 +166,10 @@ async def upload_document(
     temp: SpooledTemporaryFile[bytes] = SpooledTemporaryFile(max_size=2 * 1024 * 1024)
     size = 0
     header = b""
+    digest = hashlib.sha256()
     while chunk := await upload.read(64 * 1024):
         size += len(chunk)
+        digest.update(chunk)
         if size > settings.max_document_bytes:
             temp.close()
             raise ApiError(413, "file_too_large", "The document exceeds the upload limit.")
@@ -125,10 +179,15 @@ async def upload_document(
     if size == 0 or not signature_matches(extension, header):
         temp.close()
         raise ApiError(415, "invalid_file_content", "File content does not match its type.")
+    content_sha256 = digest.hexdigest()
+    storage = PrivateObjectStorage(settings)
+    existing = await attached_duplicate(db, storage, trip_id, content_sha256, size)
+    if existing is not None:
+        temp.close()
+        raise duplicate_error(existing)
 
     document_id = uuid.uuid4()
     key = f"documents/{user.id}/{trip_id}/{document_id}{extension}"
-    storage = PrivateObjectStorage(settings)
     try:
         await storage.put(key, temp, mime_type)
     finally:
@@ -143,11 +202,20 @@ async def upload_document(
         file_size_bytes=size,
         mime_type=mime_type,
         storage_key=key,
+        content_sha256=content_sha256,
         document_category=category.value,
     )
     db.add(document)
     try:
         await db.commit()
+    except IntegrityError:
+        # A concurrent upload of the same file won the unique index.
+        await db.rollback()
+        await storage.delete(key)
+        existing = await attached_duplicate(db, storage, trip_id, content_sha256, size)
+        if existing is None:
+            raise
+        raise duplicate_error(existing) from None
     except Exception:
         await storage.delete(key)
         raise
