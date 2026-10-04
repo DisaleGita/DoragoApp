@@ -63,7 +63,18 @@ class SyncMetadata extends Table {
   ],
 )
 class OfflineDatabase extends _$OfflineDatabase {
-  OfflineDatabase() : super(driftDatabase(name: 'dorago'));
+  OfflineDatabase()
+    : super(
+        driftDatabase(
+          name: 'dorago',
+          // Both assets live in web/ and must match the locked drift and
+          // sqlite3 package versions.
+          web: DriftWebOptions(
+            sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+            driftWorker: Uri.parse('drift_worker.js'),
+          ),
+        ),
+      );
   OfflineDatabase.forTesting(super.executor);
 
   @override

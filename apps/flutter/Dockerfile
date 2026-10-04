@@ -6,7 +6,7 @@ COPY pubspec.yaml pubspec.lock analysis_options.yaml ./
 RUN flutter pub get
 COPY . .
 RUN dart run build_runner build && \
-    flutter build web --release --dart-define=API_BASE_URL=${API_BASE_URL}
+    flutter build web --release --no-web-resources-cdn --dart-define=API_BASE_URL=${API_BASE_URL}
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf

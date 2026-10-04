@@ -1,14 +1,26 @@
 import 'package:dorago/application/providers.dart';
 import 'package:dorago/data/api/api_client.dart';
+import 'package:dorago/core/timezones.dart';
 import 'package:dorago/domain/models/plan_item.dart';
+import 'package:dorago/presentation/shared/timezone_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 class PlanFormDialog extends ConsumerStatefulWidget {
-  const PlanFormDialog({required this.tripId, this.plan, super.key});
+  const PlanFormDialog({
+    required this.tripId,
+    this.plan,
+    this.tripTimezone,
+    this.tripStartDate,
+    super.key,
+  });
   final String tripId;
   final PlanItem? plan;
+
+  /// New plans start in the trip's timezone and on its first day.
+  final String? tripTimezone;
+  final DateTime? tripStartDate;
   @override
   ConsumerState<PlanFormDialog> createState() => _PlanFormDialogState();
 }
@@ -41,7 +53,12 @@ class _PlanFormDialogState extends ConsumerState<PlanFormDialog> {
     final existing = widget.plan;
     type = existing?.type ?? PlanType.flight;
     title = TextEditingController(text: existing?.title);
-    timezone = TextEditingController(text: existing?.startTimezone ?? 'UTC');
+    timezone = TextEditingController(
+      text:
+          existing?.startTimezone ??
+          widget.tripTimezone ??
+          ref.read(deviceTimezoneProvider),
+    );
     endTimezone = TextEditingController(text: existing?.endTimezone ?? '');
     provider = TextEditingController(text: existing?.providerName);
     confirmation = TextEditingController(text: existing?.confirmationNumber);
@@ -54,9 +71,31 @@ class _PlanFormDialogState extends ConsumerState<PlanFormDialog> {
     phone = TextEditingController(text: existing?.contactPhone);
     email = TextEditingController(text: existing?.contactEmail);
     details = Map<String, dynamic>.from(existing?.details ?? const {});
-    start =
-        existing?.startLocal ?? DateTime.now().add(const Duration(hours: 1));
+    start = existing?.startLocal ?? defaultStart();
     end = existing?.endLocal;
+  }
+
+  DateTime defaultStart() {
+    final soon = DateTime.now().add(const Duration(hours: 1));
+    final tripStart = widget.tripStartDate;
+    if (tripStart == null || !tripStart.isAfter(soon)) {
+      return DateTime(soon.year, soon.month, soon.day, soon.hour);
+    }
+    return DateTime(tripStart.year, tripStart.month, tripStart.day, 9);
+  }
+
+  String get effectiveEndTimezone => endTimezone.text.trim().isEmpty
+      ? timezone.text.trim()
+      : endTimezone.text.trim();
+
+  /// Local clocks differ between zones (a westbound flight can land "before"
+  /// it departs), so ordering is checked on the UTC instants.
+  bool get endsBeforeStart {
+    final endValue = end;
+    if (endValue == null) return false;
+    final startUtc = localToUtc(start, timezone.text.trim());
+    final endUtc = localToUtc(endValue, effectiveEndTimezone);
+    return startUtc != null && endUtc != null && endUtc.isBefore(startUtc);
   }
 
   @override
@@ -102,6 +141,10 @@ class _PlanFormDialogState extends ConsumerState<PlanFormDialog> {
 
   Future<void> save() async {
     if (!formKey.currentState!.validate() || busy) return;
+    if (endsBeforeStart) {
+      setState(() => error = 'The end time is before the start time.');
+      return;
+    }
     setState(() {
       busy = true;
       error = null;
@@ -112,11 +155,7 @@ class _PlanFormDialogState extends ConsumerState<PlanFormDialog> {
       'start_local': localIso(start),
       'start_timezone': timezone.text.trim(),
       'end_local': end == null ? null : localIso(end!),
-      'end_timezone': end == null
-          ? null
-          : endTimezone.text.trim().isEmpty
-          ? timezone.text.trim()
-          : endTimezone.text.trim(),
+      'end_timezone': end == null ? null : effectiveEndTimezone,
       'is_all_day': false,
       'provider_name': nullable(provider.text),
       'confirmation_number': nullable(confirmation.text),
@@ -225,20 +264,16 @@ class _PlanFormDialogState extends ConsumerState<PlanFormDialog> {
                 },
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: timezone,
-                decoration: const InputDecoration(
-                  labelText: 'Start IANA timezone',
-                ),
-                validator: requiredValue,
-              ),
+              TimezoneField(controller: timezone, label: 'Start timezone'),
               const SizedBox(height: 12),
               _DateTimeButton(
                 label: end == null ? 'Add end time' : 'Ends',
                 value: end,
                 onTap: () async {
                   final value = await chooseDateTime(
-                    end ?? start.add(const Duration(hours: 1)),
+                    end != null && !end!.isBefore(start)
+                        ? end!
+                        : start.add(const Duration(hours: 1)),
                   );
                   if (value != null) setState(() => end = value);
                 },
@@ -246,12 +281,11 @@ class _PlanFormDialogState extends ConsumerState<PlanFormDialog> {
               ),
               if (end != null) ...[
                 const SizedBox(height: 12),
-                TextFormField(
+                TimezoneField(
                   controller: endTimezone,
-                  decoration: const InputDecoration(
-                    labelText: 'End IANA timezone',
-                    hintText: 'Defaults to start timezone',
-                  ),
+                  label: 'End timezone',
+                  hint: 'Same as start unless you change it',
+                  optional: true,
                 ),
               ],
               const SizedBox(height: 12),

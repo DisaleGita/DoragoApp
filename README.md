@@ -37,8 +37,14 @@ dart run build_runner build
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
-flutter build web --release --dart-define=API_BASE_URL=/api/v1
+flutter build web --release --no-web-resources-cdn --dart-define=API_BASE_URL=/api/v1
 ```
+
+`--no-web-resources-cdn` bundles CanvasKit with the app; the production
+Content-Security-Policy only allows scripts from the app's own origin, so a
+CDN-loaded CanvasKit renders a blank page. `web/sqlite3.wasm` and
+`web/drift_worker.js` back the offline cache on web and must match the locked
+`sqlite3` and `drift` package versions when those dependencies are upgraded.
 
 PostgreSQL integration tests require `TEST_DATABASE_URL` to name a disposable
 database ending in `_test`. The test harness refuses to reset any other name.

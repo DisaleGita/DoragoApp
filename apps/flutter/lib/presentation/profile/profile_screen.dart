@@ -1,3 +1,5 @@
+import 'package:dorago/presentation/shared/timezone_field.dart';
+import 'package:dorago/core/timezones.dart';
 import 'package:dorago/application/providers.dart';
 import 'package:dorago/data/api/api_client.dart';
 import 'package:dorago/presentation/shared/app_shell.dart';
@@ -162,7 +164,9 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
       text: widget.user['preferred_currency'] as String? ?? 'USD',
     );
     timezone = TextEditingController(
-      text: widget.user['timezone'] as String? ?? 'UTC',
+      text:
+          widget.user['timezone'] as String? ??
+          ref.read(deviceTimezoneProvider),
     );
   }
 
@@ -176,6 +180,10 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
   }
 
   Future<void> save() async {
+    if (!isKnownTimezone(timezone.text.trim())) {
+      setState(() => error = 'Choose a timezone from the list.');
+      return;
+    }
     try {
       final updated = await ref.read(profileRepositoryProvider).update({
         'display_name': name.text.trim(),
@@ -213,10 +221,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
             decoration: const InputDecoration(labelText: 'Preferred currency'),
           ),
           const SizedBox(height: 10),
-          TextField(
-            controller: timezone,
-            decoration: const InputDecoration(labelText: 'IANA timezone'),
-          ),
+          TimezoneField(controller: timezone, label: 'Timezone'),
           if (error != null)
             Padding(
               padding: const EdgeInsets.only(top: 10),

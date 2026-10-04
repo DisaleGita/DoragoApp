@@ -47,16 +47,22 @@ jobs:
           cache: pip
           cache-dependency-path: services/api/pyproject.toml
       - run: pip install -e './services/api[dev]'
-      - run: ruff check services/api
-      - run: ruff format --check services/api
-      - run: mypy services/api/app
+      # Run from services/api so ruff, mypy (with the pydantic plugin) and
+      # pytest read the [tool.*] settings in services/api/pyproject.toml.
+      - run: ruff check .
+        working-directory: services/api
+      - run: ruff format --check .
+        working-directory: services/api
+      - run: mypy app
+        working-directory: services/api
       - run: alembic upgrade head
         working-directory: services/api
       - run: alembic check
         working-directory: services/api
       - run: alembic downgrade base
         working-directory: services/api
-      - run: pytest -q services/api/tests
+      - run: pytest -q
+        working-directory: services/api
 
   flutter:
     runs-on: ubuntu-latest
@@ -76,7 +82,7 @@ jobs:
         working-directory: apps/flutter
       - run: flutter test
         working-directory: apps/flutter
-      - run: flutter build web --release --dart-define=API_BASE_URL=/api/v1
+      - run: flutter build web --release --no-web-resources-cdn --dart-define=API_BASE_URL=/api/v1
         working-directory: apps/flutter
       - run: flutter build apk --debug
         working-directory: apps/flutter

@@ -1,6 +1,7 @@
 import 'package:dorago/application/providers.dart';
 import 'package:dorago/data/api/api_client.dart';
 import 'package:dorago/domain/models/trip.dart';
+import 'package:dorago/presentation/shared/timezone_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -28,7 +29,9 @@ class _TripFormDialogState extends ConsumerState<TripFormDialog> {
     final now = DateUtils.dateOnly(DateTime.now());
     title = TextEditingController(text: widget.trip?.title);
     destination = TextEditingController(text: widget.trip?.primaryDestination);
-    timezone = TextEditingController(text: widget.trip?.timezone ?? 'UTC');
+    timezone = TextEditingController(
+      text: widget.trip?.timezone ?? ref.read(deviceTimezoneProvider),
+    );
     start = widget.trip?.startDate ?? now;
     end = widget.trip?.endDate ?? now.add(const Duration(days: 3));
   }
@@ -45,9 +48,10 @@ class _TripFormDialogState extends ConsumerState<TripFormDialog> {
     final current = isStart ? start : end;
     final selected = await showDatePicker(
       context: context,
-      firstDate: DateTime(2000),
+      // An end date can never be picked before the start date.
+      firstDate: isStart ? DateTime(2000) : start,
       lastDate: DateTime(2100),
-      initialDate: current,
+      initialDate: isStart || !current.isBefore(start) ? current : start,
     );
     if (selected != null) {
       setState(() {
@@ -79,8 +83,10 @@ class _TripFormDialogState extends ConsumerState<TripFormDialog> {
       'travelers': <Object>[],
     };
     if (widget.trip != null) {
+      // The form does not edit these, so an update must keep the saved values.
       values.remove('additional_destinations');
       values.remove('travelers');
+      values.remove('purpose');
     }
     try {
       final repository = ref.read(tripRepositoryProvider);
@@ -123,14 +129,7 @@ class _TripFormDialogState extends ConsumerState<TripFormDialog> {
                 validator: requiredValue,
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: timezone,
-                decoration: const InputDecoration(
-                  labelText: 'IANA timezone',
-                  hintText: 'America/Chicago',
-                ),
-                validator: requiredValue,
-              ),
+              TimezoneField(controller: timezone, label: 'Timezone'),
               const SizedBox(height: 12),
               Row(
                 children: [

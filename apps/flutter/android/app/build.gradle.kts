@@ -6,10 +6,14 @@ plugins {
 
 android {
     namespace = "app.dorago.dorago"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_secure_storage 11 compiles against API 37. compileSdk only
+    // exposes newer APIs; runtime behaviour is still set by targetSdk.
+    compileSdk = maxOf(flutter.compileSdkVersion, 37)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Required by flutter_local_notifications for scheduled reminders.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -44,4 +48,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

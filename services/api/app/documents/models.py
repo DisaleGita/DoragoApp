@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, String
+from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -17,6 +17,15 @@ class TravelDocument(Base, TimestampMixin, SoftDeleteMixin):
             name="ck_documents_category",
         ),
         CheckConstraint("file_size_bytes > 0", name="ck_documents_file_size"),
+        # The same file content may be attached to a trip only once; deleted
+        # documents do not count, so a removed file can be uploaded again.
+        Index(
+            "uq_documents_trip_content",
+            "trip_id",
+            "content_sha256",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL AND content_sha256 IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -34,4 +43,5 @@ class TravelDocument(Base, TimestampMixin, SoftDeleteMixin):
     file_size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
     storage_key: Mapped[str] = mapped_column(String(1000), unique=True, nullable=False)
+    content_sha256: Mapped[str | None] = mapped_column(String(64))
     document_category: Mapped[str] = mapped_column(String(30), default="other", nullable=False)

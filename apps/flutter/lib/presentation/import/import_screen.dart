@@ -1,3 +1,5 @@
+import 'package:dorago/presentation/shared/timezone_field.dart';
+import 'package:dorago/core/timezones.dart';
 import 'package:dorago/application/providers.dart';
 import 'package:dorago/data/api/api_client.dart';
 import 'package:dorago/domain/models/plan_item.dart';
@@ -22,7 +24,9 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   final newTripDestination = TextEditingController();
   final newTripStartDate = TextEditingController();
   final newTripEndDate = TextEditingController();
-  final newTripTimezone = TextEditingController();
+  late final newTripTimezone = TextEditingController(
+    text: ref.read(deviceTimezoneProvider),
+  );
   bool busy = false;
   String? error;
   Map<String, dynamic>? review;
@@ -122,9 +126,24 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         ].any((controller) => controller.text.trim().isEmpty)) {
       setState(
         () => error =
-            'Complete the new trip title, destination, dates, and IANA timezone.',
+            'Complete the new trip title, destination, dates, and timezone.',
       );
       return;
+    }
+    if (createNewTrip) {
+      final start = DateTime.tryParse(newTripStartDate.text.trim());
+      final end = DateTime.tryParse(newTripEndDate.text.trim());
+      final problem = start == null || end == null
+          ? 'Enter trip dates as YYYY-MM-DD.'
+          : end.isBefore(start)
+          ? 'The trip end date must not be before its start date.'
+          : !isKnownTimezone(newTripTimezone.text.trim())
+          ? 'Choose the trip timezone from the list.'
+          : null;
+      if (problem != null) {
+        setState(() => error = problem);
+        return;
+      }
     }
     setState(() {
       busy = true;
@@ -356,13 +375,7 @@ class _NewTripFields extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          TextField(
-            controller: timezone,
-            decoration: const InputDecoration(
-              labelText: 'Trip IANA timezone',
-              hintText: 'America/Chicago',
-            ),
-          ),
+          TimezoneField(controller: timezone, label: 'Trip timezone'),
         ],
       ),
     ),
