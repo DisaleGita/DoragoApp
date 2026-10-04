@@ -1,6 +1,6 @@
 # Dorago implementation status
 
-Last updated: 2026-09-05.
+Last updated: 2026-10-02.
 
 This file records implementation evidence separately from the required
 completion criteria in `MIGRATION_PLAN.md`. A phase is not complete merely
@@ -20,6 +20,26 @@ because source exists.
 | 10. Parity cutover | Not started | React prototype remains untouched at the root | All prior gates, mobile release builds, product sign-off, rollback rehearsal, then legacy move |
 
 ## Latest local verification
+
+2026-10-02 local run (API, PostgreSQL 16.15 and Redis 7.4 running natively; no
+Docker, SMTP, MinIO or Gemini):
+
+- FastAPI: Ruff, mypy (57 files) and all 41 unit/PostgreSQL integration tests
+  pass; Alembic upgrade, drift check, downgrade and re-upgrade pass. A live API
+  smoke run confirmed OTP login, wrong-code rejection, resend cooldown,
+  cross-user 404s, refresh rotation with reuse revocation, and logout.
+- Fixed: comma-separated `CORS_ALLOWED_ORIGINS` (the `.env.example` format)
+  crashed API startup because pydantic-settings JSON-decoded the list first.
+- Flutter 3.47.6: formatter and analyzer clean; 8 tests pass. The web release
+  build was driven in Chrome through login, trip creation, plan creation,
+  timeline, import/profile screens, and logout.
+- Fixed: the web offline database had no Drift web options, so every trip
+  screen failed after login; deep links and browser refreshes always returned
+  to `/trips`; nginx cached unhashed Flutter bundles as immutable for a year;
+  CDN-loaded CanvasKit was blocked by the production CSP (blank page).
+
+Earlier verification (2026-09-05):
+
 
 - FastAPI: Ruff format/check clean and mypy clean across 56 source files. The
   Alembic upgrade, metadata-drift check, and downgrade pass against PostgreSQL
