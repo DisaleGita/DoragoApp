@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     smtp_username: str | None = None
     smtp_password: SecretStr | None = None
     smtp_from_email: str | None = None
-    storage_endpoint: str = "http://minio:9000"
+    storage_endpoint: str = "http://seaweedfs:8333"
     storage_access_key: SecretStr | None = None
     storage_secret_key: SecretStr | None = None
     storage_bucket: str = "dorago-documents"

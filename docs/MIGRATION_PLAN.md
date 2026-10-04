@@ -12,7 +12,7 @@ definition of completion.
 - API: FastAPI under `/api/v1`, snake_case JSON, UUIDs, ISO-8601 timestamps, OpenAPI, and `{code,message,details,request_id}` errors.
 - Plans: all 21 categories, including Shuttle, with independent local/UTC start and end times and IANA start/end timezones.
 - Data: PostgreSQL authoritative; Redis only for rate limits, short-lived coordination and caching; Drift for offline cache/queue.
-- Files: private S3-compatible storage through an adapter, initially MinIO and later DigitalOcean Spaces.
+- Files: private S3-compatible storage through an adapter, initially SeaweedFS (MinIO images are no longer published) and later DigitalOcean Spaces.
 - Client: Flutter for iOS, Android, and Web with go_router, Riverpod, Dio, Freezed/json_serializable, Drift, secure storage, and local notifications.
 
 ## 1. Audit and repository baseline
@@ -92,7 +92,7 @@ Completion criteria:
 
 ## 7. Documents, reminders and locations
 
-- Validate and stream private uploads to MinIO; authorize metadata, signed download and deletion.
+- Validate and stream private uploads to private S3-compatible storage; authorize metadata, signed download and deletion.
 - Store reminders on the server and schedule/cancel Flutter mobile notifications on data changes.
 - Preserve the chronological places list and map deep links; put geocoding behind a replaceable provider with no fabricated coordinates.
 
@@ -115,7 +115,7 @@ Completion criteria:
 
 ## 9. Deployment and operations
 
-- Containerize API and Flutter Web with PostgreSQL, Redis, MinIO and Caddy in Compose.
+- Containerize API and Flutter Web with PostgreSQL, Redis, SeaweedFS and Caddy in Compose.
 - Add migration execution, HTTPS/domain routing, CORS, cookie/CSRF and security headers, request limits, redacted structured logs, health/readiness, backups and restore guidance.
 
 Completion criteria:
@@ -140,5 +140,5 @@ Completion criteria:
 
 - Existing records are prototype/demo data, so no localStorage or Supabase ETL is required.
 - Demo fixtures require explicit development/test configuration.
-- Caddy, MinIO, SMTP, PostgreSQL and Redis are the initial implementations.
+- Caddy, SeaweedFS, SMTP, PostgreSQL and Redis are the initial implementations.
 - User-visible React behavior is preserved unless it is unsafe, fabricated, inaccessible or demonstrably broken.

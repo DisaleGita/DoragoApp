@@ -39,4 +39,4 @@ apps/flutter/ios/Flutter/flutter_export_environment.sh
 .data/
 postgres-data/
 redis-data/
-minio-data/
+seaweedfs-data/

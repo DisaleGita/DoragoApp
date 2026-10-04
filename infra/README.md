@@ -1,9 +1,12 @@
 # Dorago deployment
 
-The Compose topology exposes only Caddy. PostgreSQL, Redis, MinIO, the API, and
-the Flutter web server remain on the private Docker network. MinIO objects are
-private; the authenticated API verifies ownership and streams downloads without
-publishing MinIO or durable object URLs.
+The Compose topology exposes only Caddy. PostgreSQL, Redis, SeaweedFS (private
+S3-compatible object storage), the API, and the Flutter web server remain on the
+private Docker network. Stored objects are private; the authenticated API
+verifies ownership and streams downloads without publishing storage or durable
+object URLs. SeaweedFS replaced MinIO, which no longer publishes pullable Docker
+images; the API only speaks S3, so DigitalOcean Spaces can replace it by
+changing `STORAGE_*` settings.
 
 ## First deployment
 
@@ -17,6 +20,7 @@ publishing MinIO or durable object URLs.
    and review the resolved configuration.
 5. Run `docker compose --env-file ../.env -f compose.yaml up -d --build`.
 
-The one-shot `migrate` service must complete before the API starts. Back up both
-the PostgreSQL volume and the MinIO bucket. A restore drill is required before a
+The one-shot `migrate` and `storage-init` services must complete before the API
+starts; `storage-init` creates the private bucket. Back up both the PostgreSQL
+database and the `seaweedfs-data` volume. A restore drill is required before a
 production launch; Redis is intentionally not an authoritative datastore.
