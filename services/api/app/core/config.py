@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Annotated
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -43,6 +44,11 @@ class Settings(BaseSettings):
     cors_allowed_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     max_document_bytes: int = 15 * 1024 * 1024
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def use_async_driver(cls, value: object) -> object:
+        return async_database_url(value) if isinstance(value, str) else value
+
     @field_validator(
         "dev_otp_code",
         "gemini_api_key",
@@ -84,6 +90,28 @@ class Settings(BaseSettings):
     @property
     def production(self) -> bool:
         return self.app_env.lower() == "production"
+
+
+def async_database_url(url: str) -> str:
+    """Accept hosted PostgreSQL URLs as providers print them.
+
+    Providers such as Neon hand out ``postgresql://...?sslmode=require``; the
+    asyncpg driver needs ``postgresql+asyncpg://...?ssl=require`` and rejects
+    libpq-only options such as ``channel_binding``.
+    """
+    parts = urlsplit(url)
+    scheme = parts.scheme
+    if scheme in {"postgres", "postgresql"}:
+        scheme = "postgresql+asyncpg"
+    if scheme != "postgresql+asyncpg":
+        return url
+    query = []
+    for key, item in parse_qsl(parts.query, keep_blank_values=True):
+        if key == "sslmode":
+            key = "ssl"
+        if key != "channel_binding":
+            query.append((key, item))
+    return urlunsplit((scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 @lru_cache
