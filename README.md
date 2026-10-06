@@ -56,6 +56,9 @@ SMTP/storage configuration, and follow [the deployment runbook](docs/DEPLOYMENT.
 Only Caddy is published by Compose; PostgreSQL, Redis, SeaweedFS object storage, the API, and the
 Flutter web server remain private.
 
+A zero-cost demo deployment (Vercel, Render and free managed services) is
+described in [the free deployment guide](docs/FREE_DEPLOYMENT.md).
+
 Architecture decisions and incomplete release gates are tracked in
 [the migration plan](docs/MIGRATION_PLAN.md) and
 [implementation status](docs/IMPLEMENTATION_STATUS.md).

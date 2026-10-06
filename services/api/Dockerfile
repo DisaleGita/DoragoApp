@@ -9,11 +9,12 @@ COPY pyproject.toml ./
 COPY app ./app
 COPY alembic.ini ./
 COPY alembic ./alembic
+COPY start.sh ./
 RUN pip install --upgrade pip && pip install .
 
 RUN addgroup --system dorago && adduser --system --ingroup dorago dorago
 USER dorago
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+CMD ["./start.sh"]
 
